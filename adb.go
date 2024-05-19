@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/zach-klippenstein/goadb/internal/errors"
-	"github.com/zach-klippenstein/goadb/wire"
+	_err "errors"
+	"github.com/basiooo/goadb/internal/errors"
+	"github.com/basiooo/goadb/wire"
 )
 
 /*
@@ -53,6 +54,16 @@ func (c *Adb) Device(descriptor DeviceDescriptor) *Device {
 	}
 }
 
+// Get device by serial
+func (c *Adb) DeviceBySerial(serial string) (*Device, error) {
+	deviceDescriptor := DeviceWithSerial(serial)
+	device := c.Device(deviceDescriptor)
+	if _, err := device.Serial(); err != nil {
+		return nil, _err.New("device not found")
+	}
+	return device, nil
+}
+
 func (c *Adb) NewDeviceWatcher() *DeviceWatcher {
 	return newDeviceWatcher(c.server)
 }
@@ -75,6 +86,7 @@ func (c *Adb) ServerVersion() (int, error) {
 KillServer tells the server to quit immediately.
 
 Corresponds to the command:
+
 	adb kill-server
 */
 func (c *Adb) KillServer() error {
@@ -95,6 +107,7 @@ func (c *Adb) KillServer() error {
 ListDeviceSerials returns the serial numbers of all attached devices.
 
 Corresponds to the command:
+
 	adb devices
 */
 func (c *Adb) ListDeviceSerials() ([]string, error) {
@@ -119,6 +132,7 @@ func (c *Adb) ListDeviceSerials() ([]string, error) {
 ListDevices returns the list of connected devices.
 
 Corresponds to the command:
+
 	adb devices -l
 */
 func (c *Adb) ListDevices() ([]*DeviceInfo, error) {
@@ -138,6 +152,7 @@ func (c *Adb) ListDevices() ([]*DeviceInfo, error) {
 Connect connect to a device via TCP/IP
 
 Corresponds to the command:
+
 	adb connect
 */
 func (c *Adb) Connect(host string, port int) error {

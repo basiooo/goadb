@@ -3,10 +3,10 @@ package wire
 import (
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 	"strconv"
+	"time"
 
-	"github.com/zach-klippenstein/goadb/internal/errors"
+	"github.com/basiooo/goadb/internal/errors"
 )
 
 // TODO(zach): All EOF errors returned from networoking calls should use ConnectionResetError.
@@ -70,11 +70,32 @@ func (s *realScanner) ReadMessage() ([]byte, error) {
 }
 
 func (s *realScanner) ReadUntilEof() ([]byte, error) {
-	data, err := ioutil.ReadAll(s.reader)
-	if err != nil {
+	dataChan := make(chan []byte, 1)
+	errChan := make(chan error, 1)
+
+	go func() {
+		data, err := io.ReadAll(s.reader)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		dataChan <- data
+	}()
+
+	timeout := time.After(5 * time.Second)
+
+	select {
+	case <-timeout:
+		return nil, &errors.Err{
+			Code:    errors.ShellTimeOut,
+			Message: "Error reading until EOF: operation timed out",
+			Cause:   nil,
+		}
+	case err := <-errChan:
 		return nil, errors.WrapErrorf(err, errors.NetworkError, "error reading until EOF")
+	case data := <-dataChan:
+		return data, nil
 	}
-	return data, nil
 }
 
 func (s *realScanner) NewSyncScanner() SyncScanner {

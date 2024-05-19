@@ -1,6 +1,6 @@
 package adb
 
-import "github.com/zach-klippenstein/goadb/internal/errors"
+import "github.com/basiooo/goadb/internal/errors"
 
 type ErrCode errors.ErrCode
 
@@ -19,6 +19,8 @@ const (
 	DeviceNotFound = ErrCode(errors.DeviceNotFound)
 	// Tried to perform an operation on a path that doesn't exist on the device.
 	FileNoExistError = ErrCode(errors.FileNoExistError)
+	// Enter interactive shell and cannot exit
+	ShellTimeoutError = ErrCode(errors.ShellTimeOut)
 )
 
 // HasErrCode returns true if err is an *errors.Err and err.Code == code.

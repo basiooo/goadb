@@ -1,12 +1,14 @@
 package adb
 
-import "github.com/zach-klippenstein/goadb/internal/errors"
+import "github.com/basiooo/goadb/internal/errors"
 
 // DeviceState represents one of the 3 possible states adb will report devices.
 // A device can be communicated with when it's in StateOnline.
 // A USB device will make the following state transitions:
-// 	Plugged in: StateDisconnected->StateOffline->StateOnline
-// 	Unplugged:  StateOnline->StateDisconnected
+//
+//	Plugged in: StateDisconnected->StateOffline->StateOnline
+//	Unplugged:  StateOnline->StateDisconnected
+//
 //go:generate stringer -type=DeviceState
 type DeviceState int8
 
@@ -16,6 +18,8 @@ const (
 	StateDisconnected
 	StateOffline
 	StateOnline
+	StateAuthorizing
+	StateRecovery
 )
 
 var deviceStateStrings = map[string]DeviceState{
@@ -23,6 +27,8 @@ var deviceStateStrings = map[string]DeviceState{
 	"offline":      StateOffline,
 	"device":       StateOnline,
 	"unauthorized": StateUnauthorized,
+	"authorizing":  StateAuthorizing,
+	"recovery":     StateRecovery,
 }
 
 func parseDeviceState(str string) (DeviceState, error) {
