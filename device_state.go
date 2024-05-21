@@ -19,6 +19,7 @@ const (
 	StateOffline
 	StateOnline
 	StateAuthorizing
+	StateRecovery
 )
 
 var deviceStateStrings = map[string]DeviceState{
@@ -27,6 +28,7 @@ var deviceStateStrings = map[string]DeviceState{
 	"device":       StateOnline,
 	"unauthorized": StateUnauthorized,
 	"authorizing":  StateAuthorizing,
+	"recovery":     StateRecovery,
 }
 
 func parseDeviceState(str string) (DeviceState, error) {
