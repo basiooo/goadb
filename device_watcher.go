@@ -1,16 +1,11 @@
 package adb
 
 import (
-	"context"
-	"log"
-	"math/rand"
+	"github.com/basiooo/goadb/internal/errors"
+	"github.com/basiooo/goadb/wire"
 	"runtime"
 	"strings"
 	"sync/atomic"
-	"time"
-
-	"github.com/basiooo/goadb/internal/errors"
-	"github.com/basiooo/goadb/wire"
 )
 
 /*
@@ -45,18 +40,13 @@ type deviceWatcherImpl struct {
 
 	// If an error occurs, it is stored here and eventChan is close immediately after.
 	err       atomic.Value
-	ctx       context.Context
-	ctxCancel context.CancelFunc
 	eventChan chan DeviceStateChangedEvent
 }
 
 func newDeviceWatcher(server server) *DeviceWatcher {
-	ctx, cancel := context.WithCancel(context.Background())
 	watcher := &DeviceWatcher{&deviceWatcherImpl{
 		server:    server,
 		eventChan: make(chan DeviceStateChangedEvent),
-		ctx:       ctx,
-		ctxCancel: cancel,
 	}}
 
 	runtime.SetFinalizer(watcher, func(watcher *DeviceWatcher) {
@@ -88,7 +78,7 @@ func (w *DeviceWatcher) Err() error {
 // Shutdown stops the watcher from listening for events and closes the channel returned
 // from C.
 func (w *DeviceWatcher) Shutdown() {
-	w.ctxCancel()
+	// TODO(z): Implement.
 }
 
 func (w *deviceWatcherImpl) reportErr(err error) {
@@ -110,52 +100,6 @@ publishDevices can look at ret val: if false and err == EOF, reconnect. If false
 and abort. If true, report no error and stop.
 */
 func publishDevices(watcher *deviceWatcherImpl) {
-	defer close(watcher.eventChan)
-
-	var lastKnownStates map[string]DeviceState
-	finished := false
-
-	for {
-		select {
-		case <-watcher.ctx.Done():
-			log.Println("[DeviceWatcher] Received stop signal")
-			return
-		default:
-			scanner, err := connectToTrackDevices(watcher.server)
-			if err != nil {
-				watcher.reportErr(err)
-				return
-			}
-
-			finished, err = publishDevicesUntilError(scanner, watcher.eventChan, &lastKnownStates)
-			if finished {
-				scanner.Close()
-				return
-			}
-
-			if HasErrCode(err, ConnectionResetError) {
-				delay := time.Duration(rand.Intn(500)) * time.Millisecond
-				log.Printf("[DeviceWatcher] server died, restarting in %s…", delay)
-				time.Sleep(delay)
-				if err := watcher.server.Start(); err != nil {
-					log.Println("[DeviceWatcher] error restarting server, giving up")
-					watcher.reportErr(err)
-					return
-				}
-			} else {
-				watcher.reportErr(err)
-				return
-			}
-
-			select {
-			case <-watcher.ctx.Done():
-				log.Println("[DeviceWatcher] Received stop signal during processing")
-				return
-			default:
-				// Continue processing
-			}
-		}
-	}
 }
 
 func connectToTrackDevices(server server) (wire.Scanner, error) {
