@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	_err "errors"
 	"github.com/basiooo/goadb/internal/errors"
 	"github.com/basiooo/goadb/wire"
 )
@@ -51,6 +52,16 @@ func (c *Adb) Device(descriptor DeviceDescriptor) *Device {
 		descriptor:     descriptor,
 		deviceListFunc: c.ListDevices,
 	}
+}
+
+// Get device by serial
+func (c *Adb) DeviceBySerial(serial string) (*Device, error) {
+	deviceDescriptor := DeviceWithSerial(serial)
+	device := c.Device(deviceDescriptor)
+	if _, err := device.Serial(); err != nil {
+		return nil, _err.New("device not found")
+	}
+	return device, nil
 }
 
 func (c *Adb) NewDeviceWatcher() *DeviceWatcher {
