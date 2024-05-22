@@ -3,9 +3,12 @@ package adb
 import (
 	"github.com/basiooo/goadb/internal/errors"
 	"github.com/basiooo/goadb/wire"
+	"log"
+	"math/rand"
 	"runtime"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
 /*
@@ -100,6 +103,45 @@ publishDevices can look at ret val: if false and err == EOF, reconnect. If false
 and abort. If true, report no error and stop.
 */
 func publishDevices(watcher *deviceWatcherImpl) {
+	defer close(watcher.eventChan)
+
+	var lastKnownStates map[string]DeviceState
+	finished := false
+
+	for {
+		scanner, err := connectToTrackDevices(watcher.server)
+		if err != nil {
+			watcher.reportErr(err)
+			return
+		}
+
+		finished, err = publishDevicesUntilError(scanner, watcher.eventChan, &lastKnownStates)
+
+		if finished {
+			scanner.Close()
+			return
+		}
+
+		if HasErrCode(err, ConnectionResetError) {
+			// The server died, restart and reconnect.
+
+			// Delay by a random [0ms, 500ms) in case multiple DeviceWatchers are trying to
+			// start the same server.
+			delay := time.Duration(rand.Intn(500)) * time.Millisecond
+
+			log.Printf("[DeviceWatcher] server died, restarting in %s…", delay)
+			time.Sleep(delay)
+			if err := watcher.server.Start(); err != nil {
+				log.Println("[DeviceWatcher] error restarting server, giving up")
+				watcher.reportErr(err)
+				return
+			} // Else server should be running, continue listening.
+		} else {
+			// Unknown error, don't retry.
+			watcher.reportErr(err)
+			return
+		}
+	}
 }
 
 func connectToTrackDevices(server server) (wire.Scanner, error) {
