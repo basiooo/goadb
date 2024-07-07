@@ -74,8 +74,10 @@ func parseDeviceLong(line string) (*DeviceInfo, error) {
 func parseDeviceAttributes(fields []string) map[string]string {
 	attrs := map[string]string{}
 	for _, field := range fields {
-		key, val := parseKeyVal(field)
-		attrs[key] = val
+		if len(field) > 1 {
+			key, val := parseKeyVal(field)
+			attrs[key] = val
+		}
 	}
 	return attrs
 }
