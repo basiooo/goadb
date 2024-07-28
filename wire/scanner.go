@@ -73,9 +73,6 @@ func (s *realScanner) ReadUntilEof() ([]byte, error) {
 	dataChan := make(chan []byte, 1)
 	errChan := make(chan error, 1)
 
-	defer close(dataChan)
-	defer close(errChan)
-
 	go func() {
 		data, err := io.ReadAll(s.reader)
 		if err != nil {
