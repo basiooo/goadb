@@ -82,7 +82,7 @@ func (s *realScanner) ReadUntilEof() ([]byte, error) {
 		dataChan <- data
 	}()
 
-	timeout := time.After(3 * time.Second)
+	timeout := time.After(10 * time.Second)
 
 	select {
 	case <-timeout:
