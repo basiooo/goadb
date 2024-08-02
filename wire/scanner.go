@@ -87,7 +87,7 @@ func (s *realScanner) ReadUntilEof() ([]byte, error) {
 	select {
 	case <-timeout:
 		return nil, &errors.Err{
-			Code:    errors.TimeOut,
+			Code:    errors.ShellTimeOut,
 			Message: "Error reading until EOF: operation timed out",
 			Cause:   nil,
 		}

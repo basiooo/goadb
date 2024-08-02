@@ -51,8 +51,8 @@ const (
 	DeviceNotFound
 	// Tried to perform an operation on a path that doesn't exist on the device.
 	FileNoExistError
-	// Maybe run in interactive shell and cannot exit
-	TimeOut
+	// Enter interactive shell and cannot exit
+	ShellTimeOut
 )
 
 func Errorf(code ErrCode, format string, args ...interface{}) error {
