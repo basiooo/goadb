@@ -161,3 +161,13 @@ func (c *Adb) parseServerVersion(versionRaw []byte) (int, error) {
 	}
 	return int(version), nil
 }
+
+// Get device by serial
+func (c *Adb) GetDeviceBySerial(serial string) (*Device, error) {
+	deviceDescriptor := DeviceWithSerial(serial)
+	device := c.Device(deviceDescriptor)
+	if _, err := device.Serial(); err != nil {
+		return nil, errors.Errorf(errors.DeviceNotFound, "%s", fmt.Sprintf("Device with serial %s not found", serial))
+	}
+	return device, nil
+}
