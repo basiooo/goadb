@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/alecthomas/kingpin/v2"
+	adb "github.com/basiooo/goadb"
 	"github.com/cheggaaa/pb"
-	"github.com/zach-klippenstein/goadb"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const StdIoFilename = "-"
