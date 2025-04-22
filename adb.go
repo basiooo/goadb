@@ -19,7 +19,7 @@ See list of services at https://android.googlesource.com/platform/system/core/+/
 */
 // TODO(z): Finish implementing host services.
 type Adb struct {
-	server server
+	Server server
 }
 
 // New creates a new Adb client that uses the default ServerConfig.
@@ -37,29 +37,29 @@ func NewWithConfig(config ServerConfig) (*Adb, error) {
 
 // Dial establishes a connection with the adb server.
 func (c *Adb) Dial() (*wire.Conn, error) {
-	return c.server.Dial()
+	return c.Server.Dial()
 }
 
 // Starts the adb server if it’s not running.
 func (c *Adb) StartServer() error {
-	return c.server.Start()
+	return c.Server.Start()
 }
 
 func (c *Adb) Device(descriptor DeviceDescriptor) *Device {
 	return &Device{
-		server:         c.server,
+		server:         c.Server,
 		descriptor:     descriptor,
 		deviceListFunc: c.ListDevices,
 	}
 }
 
 func (c *Adb) NewDeviceWatcher() *DeviceWatcher {
-	return newDeviceWatcher(c.server)
+	return newDeviceWatcher(c.Server)
 }
 
 // ServerVersion asks the ADB server for its internal version number.
 func (c *Adb) ServerVersion() (int, error) {
-	resp, err := roundTripSingleResponse(c.server, "host:version")
+	resp, err := roundTripSingleResponse(c.Server, "host:version")
 	if err != nil {
 		return 0, wrapClientError(err, c, "GetServerVersion")
 	}
@@ -79,7 +79,7 @@ Corresponds to the command:
 	adb kill-server
 */
 func (c *Adb) KillServer() error {
-	conn, err := c.server.Dial()
+	conn, err := c.Server.Dial()
 	if err != nil {
 		return wrapClientError(err, c, "KillServer")
 	}
@@ -100,7 +100,7 @@ Corresponds to the command:
 	adb devices
 */
 func (c *Adb) ListDeviceSerials() ([]string, error) {
-	resp, err := roundTripSingleResponse(c.server, "host:devices")
+	resp, err := roundTripSingleResponse(c.Server, "host:devices")
 	if err != nil {
 		return nil, wrapClientError(err, c, "ListDeviceSerials")
 	}
@@ -125,7 +125,7 @@ Corresponds to the command:
 	adb devices -l
 */
 func (c *Adb) ListDevices() ([]*DeviceInfo, error) {
-	resp, err := roundTripSingleResponse(c.server, "host:devices-l")
+	resp, err := roundTripSingleResponse(c.Server, "host:devices-l")
 	if err != nil {
 		return nil, wrapClientError(err, c, "ListDevices")
 	}
@@ -145,7 +145,7 @@ Corresponds to the command:
 	adb connect
 */
 func (c *Adb) Connect(host string, port int) error {
-	_, err := roundTripSingleResponse(c.server, fmt.Sprintf("host:connect:%s:%d", host, port))
+	_, err := roundTripSingleResponse(c.Server, fmt.Sprintf("host:connect:%s:%d", host, port))
 	if err != nil {
 		return wrapClientError(err, c, "Connect")
 	}
@@ -153,7 +153,7 @@ func (c *Adb) Connect(host string, port int) error {
 }
 
 func (c *Adb) DisconnectAll() error {
-	_, err := roundTripSingleResponse(c.server, "host:disconnect:")
+	_, err := roundTripSingleResponse(c.Server, "host:disconnect:")
 	if err != nil {
 		return fmt.Errorf("disconnect: %w", err)
 	}
@@ -161,7 +161,7 @@ func (c *Adb) DisconnectAll() error {
 }
 
 func (c *Adb) Disconnect(addr string) error {
-	_, err := roundTripSingleResponse(c.server, fmt.Sprintf("host:disconnect:%s", addr))
+	_, err := roundTripSingleResponse(c.Server, fmt.Sprintf("host:disconnect:%s", addr))
 	if err != nil {
 		return fmt.Errorf("disconnect: %w", err)
 	}
