@@ -152,6 +152,22 @@ func (c *Adb) Connect(host string, port int) error {
 	return nil
 }
 
+func (c *Adb) DisconnectAll() error {
+	_, err := roundTripSingleResponse(c.server, "host:disconnect:")
+	if err != nil {
+		return fmt.Errorf("disconnect: %w", err)
+	}
+	return nil
+}
+
+func (c *Adb) Disconnect(addr string) error {
+	_, err := roundTripSingleResponse(c.server, fmt.Sprintf("host:disconnect:%s", addr))
+	if err != nil {
+		return fmt.Errorf("disconnect: %w", err)
+	}
+	return nil
+}
+
 func (c *Adb) parseServerVersion(versionRaw []byte) (int, error) {
 	versionStr := string(versionRaw)
 	version, err := strconv.ParseInt(versionStr, 16, 32)
