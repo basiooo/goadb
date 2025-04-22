@@ -14,11 +14,11 @@ func TestParseDeviceState(t *testing.T) {
 		WantName  string
 		WantError error // Compared by Error() message.
 	}{
-		{"", StateDisconnected, "StateDisconnected", nil},
-		{"offline", StateOffline, "StateOffline", nil},
-		{"device", StateOnline, "StateOnline", nil},
-		{"unauthorized", StateUnauthorized, "StateUnauthorized", nil},
-		{"bad", StateInvalid, "StateInvalid", errors.New(`ParseError: invalid device state: "StateInvalid"`)},
+		{"", StateDisconnected, "Disconnected", nil},
+		{"offline", StateOffline, "Offline", nil},
+		{"device", StateOnline, "Online", nil},
+		{"unauthorized", StateUnauthorized, "Unauthorized", nil},
+		{"bad", StateInvalid, "Invalid", errors.New(`ParseError: invalid device state: "Invalid"`)},
 	} {
 		state, err := parseDeviceState(test.String)
 		if test.WantError == nil {

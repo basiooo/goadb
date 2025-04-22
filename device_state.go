@@ -18,13 +18,38 @@ const (
 	StateDisconnected
 	StateOffline
 	StateOnline
+	StateAuthorizing
+	StateRecovery
 )
+
+func (s DeviceState) String() string {
+	switch DeviceState(s) {
+	case StateDisconnected:
+		return "Disconnected"
+	case StateOffline:
+		return "Offline"
+	case StateOnline:
+		return "Online"
+	case StateUnauthorized:
+		return "Unauthorized"
+	case StateAuthorizing:
+		return "Authorizing"
+	case StateRecovery:
+		return "Recovery"
+	case StateInvalid:
+		return "Invalid"
+	default:
+		return "Unknown"
+	}
+}
 
 var deviceStateStrings = map[string]DeviceState{
 	"":             StateDisconnected,
 	"offline":      StateOffline,
 	"device":       StateOnline,
 	"unauthorized": StateUnauthorized,
+	"authorizing":  StateAuthorizing,
+	"recovery":     StateRecovery,
 }
 
 func parseDeviceState(str string) (DeviceState, error) {
