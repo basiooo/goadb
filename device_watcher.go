@@ -1,6 +1,7 @@
 package adb
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"runtime"
@@ -40,18 +41,22 @@ func (s DeviceStateChangedEvent) WentOffline() bool {
 }
 
 type deviceWatcherImpl struct {
-	server server
-
+	server        server
+	ctx           context.Context
+	scanner       wire.Scanner
+	ctxCancelFunc context.CancelFunc
 	// If an error occurs, it is stored here and eventChan is close immediately after.
-	err atomic.Value
-
+	err       atomic.Value
 	eventChan chan DeviceStateChangedEvent
 }
 
 func newDeviceWatcher(server server) *DeviceWatcher {
+	ctx, ctxCancelFunc := context.WithCancel(context.Background())
 	watcher := &DeviceWatcher{&deviceWatcherImpl{
-		server:    server,
-		eventChan: make(chan DeviceStateChangedEvent),
+		server:        server,
+		ctxCancelFunc: ctxCancelFunc,
+		ctx:           ctx,
+		eventChan:     make(chan DeviceStateChangedEvent),
 	}}
 
 	runtime.SetFinalizer(watcher, func(watcher *DeviceWatcher) {
@@ -83,7 +88,10 @@ func (w *DeviceWatcher) Err() error {
 // Shutdown stops the watcher from listening for events and closes the channel returned
 // from C.
 func (w *DeviceWatcher) Shutdown() {
-	// TODO(z): Implement.
+	w.ctxCancelFunc()
+	if w.scanner != nil {
+		w.scanner.Close()
+	}
 }
 
 func (w *deviceWatcherImpl) reportErr(err error) {
@@ -111,13 +119,18 @@ func publishDevices(watcher *deviceWatcherImpl) {
 	finished := false
 
 	for {
+		select {
+		case <-watcher.ctx.Done():
+			return
+		default:
+		}
 		scanner, err := connectToTrackDevices(watcher.server)
 		if err != nil {
 			watcher.reportErr(err)
-			return
+			continue
 		}
-
-		finished, err = publishDevicesUntilError(scanner, watcher.eventChan, &lastKnownStates)
+		watcher.scanner = scanner
+		finished, err = publishDevicesUntilError(scanner, watcher, &lastKnownStates)
 
 		if finished {
 			scanner.Close()
@@ -133,6 +146,7 @@ func publishDevices(watcher *deviceWatcherImpl) {
 
 			log.Printf("[DeviceWatcher] server died, restarting in %s…", delay)
 			time.Sleep(delay)
+
 			if err := watcher.server.Start(); err != nil {
 				log.Println("[DeviceWatcher] error restarting server, giving up")
 				watcher.reportErr(err)
@@ -165,8 +179,14 @@ func connectToTrackDevices(server server) (wire.Scanner, error) {
 	return conn, nil
 }
 
-func publishDevicesUntilError(scanner wire.Scanner, eventChan chan<- DeviceStateChangedEvent, lastKnownStates *map[string]DeviceState) (finished bool, err error) {
+func publishDevicesUntilError(scanner wire.Scanner, watcher *deviceWatcherImpl, lastKnownStates *map[string]DeviceState) (finished bool, err error) {
 	for {
+		select {
+		case <-watcher.ctx.Done():
+			return true, nil
+		default:
+		}
+
 		msg, err := scanner.ReadMessage()
 		if err != nil {
 			return false, err
@@ -178,7 +198,7 @@ func publishDevicesUntilError(scanner wire.Scanner, eventChan chan<- DeviceState
 		}
 
 		for _, event := range calculateStateDiffs(*lastKnownStates, deviceStates) {
-			eventChan <- event
+			watcher.eventChan <- event
 		}
 		*lastKnownStates = deviceStates
 	}
