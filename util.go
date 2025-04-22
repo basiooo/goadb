@@ -21,7 +21,7 @@ func isBlank(str string) bool {
 	return whitespaceRegex.MatchString(str)
 }
 
-func wrapClientError(err error, client interface{}, operation string, args ...interface{}) error {
+func wrapClientError(err error, client any, operation string, args ...any) error {
 	if err == nil {
 		return nil
 	}

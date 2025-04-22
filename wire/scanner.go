@@ -3,7 +3,6 @@ package wire
 import (
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 	"strconv"
 
 	"github.com/basiooo/goadb/internal/errors"
@@ -70,7 +69,7 @@ func (s *realScanner) ReadMessage() ([]byte, error) {
 }
 
 func (s *realScanner) ReadUntilEof() ([]byte, error) {
-	data, err := ioutil.ReadAll(s.reader)
+	data, err := io.ReadAll(s.reader)
 	if err != nil {
 		return nil, errors.WrapErrorf(err, errors.NetworkError, "error reading until EOF")
 	}
@@ -121,7 +120,7 @@ func readOctetString(description string, r io.Reader) (string, error) {
 	if err == io.ErrUnexpectedEOF {
 		return "", errIncompleteMessage(description, n, 4)
 	} else if err != nil {
-		return "", errors.WrapErrorf(err, errors.NetworkError, "error reading "+description)
+		return "", errors.WrapErrorf(err, errors.NetworkError, "%s", "error reading "+description)
 	}
 
 	return string(octet), nil

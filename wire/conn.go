@@ -44,8 +44,8 @@ func NewConn(scanner Scanner, sender Sender) *Conn {
 // to a specific device), or the return connection will return an error.
 func (c *Conn) NewSyncConn() *SyncConn {
 	return &SyncConn{
-		SyncScanner: c.Scanner.NewSyncScanner(),
-		SyncSender:  c.Sender.NewSyncSender(),
+		SyncScanner: c.NewSyncScanner(),
+		SyncSender:  c.NewSyncSender(),
 	}
 }
 

@@ -281,7 +281,7 @@ func copyWithProgressAndStats(dst io.Writer, src io.Reader, size int, showProgre
 		return err
 	}
 
-	duration := time.Now().Sub(startTime)
+	duration := time.Since(startTime)
 	rate := int64(float64(copied) / duration.Seconds())
 	fmt.Fprintf(os.Stderr, "%d B/s (%d bytes in %s)\n", rate, copied, duration)
 

@@ -87,7 +87,7 @@ func readStat(s wire.SyncScanner) (entry *DirEntry, err error) {
 
 	// adb doesn't indicate when a file doesn't exist, but will return all zeros.
 	// Theoretically this could be an actual file, but that's very unlikely.
-	if mode == os.FileMode(0) && size == 0 && mtime == zeroTime {
+	if mode == os.FileMode(0) && size == 0 && time.Time.Equal(mtime, zeroTime) {
 		return nil, errors.Errorf(errors.FileNoExistError, "file doesn't exist")
 	}
 
