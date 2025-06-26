@@ -104,9 +104,11 @@ func (c *Device) RunCommand(cmd string, args ...string) (string, error) {
 	if err != nil {
 		return "", wrapClientError(err, c, "RunCommand")
 	}
-	if err := conn.Close(); err != nil {
-		return "", wrapClientError(err, c, "RunCommand")
-	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("[Device] error closing connection: %s", err)
+		}
+	}()
 
 	req := fmt.Sprintf("shell:%s", cmd)
 
@@ -140,9 +142,11 @@ func (c *Device) Remount() (string, error) {
 	if err != nil {
 		return "", wrapClientError(err, c, "Remount")
 	}
-	if err := conn.Close(); err != nil {
-		return "", wrapClientError(err, c, "Remount")
-	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("[Device] error closing connection: %s", err)
+		}
+	}()
 
 	resp, err := conn.RoundTripSingleResponse([]byte("remount"))
 	return string(resp), wrapClientError(err, c, "Remount")
