@@ -14,10 +14,10 @@ import (
 // next message will be the error.
 const (
 	StatusSuccess  string = "OKAY"
-	StatusFailure         = "FAIL"
-	StatusSyncData        = "DATA"
-	StatusSyncDone        = "DONE"
-	StatusNone            = ""
+	StatusFailure  string = "FAIL"
+	StatusSyncData string = "DATA"
+	StatusSyncDone string = "DONE"
+	StatusNone     string = ""
 )
 
 func isFailureStatus(status string) bool {

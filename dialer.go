@@ -2,12 +2,16 @@ package adb
 
 import (
 	"io"
+	"log"
 	"net"
 	"runtime"
 
 	"github.com/basiooo/goadb/internal/errors"
 	"github.com/basiooo/goadb/wire"
 )
+
+// Variable to allow mocking in tests
+var netDial = net.Dial
 
 // Dialer knows how to create connections to an adb server.
 type Dialer interface {
@@ -19,7 +23,7 @@ type tcpDialer struct{}
 // Dial connects to the adb server on the host and port set on the netDialer.
 // The zero-value will connect to the default, localhost:5037.
 func (tcpDialer) Dial(address string) (*wire.Conn, error) {
-	netConn, err := net.Dial("tcp", address)
+	netConn, err := netDial("tcp", address)
 	if err != nil {
 		return nil, errors.WrapErrorf(err, errors.ServerNotAvailable, "error dialing %s", address)
 	}
@@ -33,7 +37,9 @@ func (tcpDialer) Dial(address string) (*wire.Conn, error) {
 	// can give their underlying connections to other scanner/sender types), so we can't
 	// set the finalizer on conn.
 	runtime.SetFinalizer(safeConn, func(conn io.ReadWriteCloser) {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			log.Printf("[Dialer] error closing connection: %s", err)
+		}
 	})
 
 	return &wire.Conn{

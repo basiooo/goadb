@@ -32,6 +32,12 @@ type SyncConn struct {
 
 // Close closes both the sender and the scanner, and returns any errors.
 func (c SyncConn) Close() error {
-	return errors.CombineErrs("error closing SyncConn", errors.NetworkError,
-		c.SyncScanner.Close(), c.SyncSender.Close())
+	scannerErr := c.SyncScanner.Close()
+	senderErr := c.SyncSender.Close()
+	
+	if scannerErr != nil || senderErr != nil {
+		return errors.WrapErrorf(errors.CombineErrs("", errors.NetworkError, scannerErr, senderErr), 
+			errors.NetworkError, "error closing SyncConn")
+	}
+	return nil
 }

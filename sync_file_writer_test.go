@@ -79,7 +79,8 @@ func TestFileWriterWriteClose(t *testing.T) {
 	mtime := time.Unix(1, 0)
 	writer := newSyncFileWriter(wire.NewSyncSender(&buf), mtime)
 
-	writer.Write([]byte("hello"))
+	_, err := writer.Write([]byte("hello"))
+	assert.NoError(t, err)
 	assert.NoError(t, writer.Close())
 
 	assert.Equal(t, "DATA\005\000\000\000helloDONE\x01\x00\x00\x00", buf.String())

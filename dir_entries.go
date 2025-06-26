@@ -2,6 +2,7 @@ package adb
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -28,7 +29,11 @@ type DirEntries struct {
 // closes self, and returns any error.
 // If err is non-nil, result will contain any entries read until the error occurred.
 func (entries *DirEntries) ReadAll() (result []*DirEntry, err error) {
-	defer entries.Close()
+	defer func() {
+		if err := entries.Close(); err != nil {
+			log.Printf("[DirEntries] error closing scanner: %s", err)
+		}
+	}()
 
 	for entries.Next() {
 		result = append(result, entries.Entry())
@@ -46,13 +51,21 @@ func (entries *DirEntries) Next() bool {
 	entry, done, err := readNextDirListEntry(entries.scanner)
 	if err != nil {
 		entries.err = err
-		entries.Close()
+		defer func() {
+			if err := entries.Close(); err != nil {
+				log.Printf("[DirEntries] error closing scanner: %s", err)
+			}
+		}()
 		return false
 	}
 
 	entries.currentEntry = entry
 	if done {
-		entries.Close()
+		defer func() {
+			if err := entries.Close(); err != nil {
+				log.Printf("[DirEntries] error closing scanner: %s", err)
+			}
+		}()
 		return false
 	}
 

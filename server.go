@@ -3,6 +3,7 @@ package adb
 import (
 	stderrors "errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -44,7 +45,11 @@ func roundTripSingleResponse(s server, req string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("[Server] error closing connection: %s", err)
+		}
+	}()
 
 	return conn.RoundTripSingleResponse([]byte(req))
 }

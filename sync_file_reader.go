@@ -33,7 +33,9 @@ func newSyncFileReader(s wire.SyncScanner) (r io.ReadCloser, err error) {
 			// and the next time the caller does a read they'll get the EOF and handle it themselves.
 			err = nil
 		} else {
-			r.Close()
+			if err := r.Close(); err != nil {
+				return nil, err
+			}
 			return nil, err
 		}
 	}

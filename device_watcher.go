@@ -90,7 +90,9 @@ func (w *DeviceWatcher) Err() error {
 func (w *DeviceWatcher) Shutdown() {
 	w.ctxCancelFunc()
 	if w.scanner != nil {
-		w.scanner.Close()
+		if err := w.scanner.Close(); err != nil {
+			log.Printf("[DeviceWatcher] error closing scanner: %s", err)
+		}
 	}
 }
 
@@ -133,7 +135,9 @@ func publishDevices(watcher *deviceWatcherImpl) {
 		finished, err = publishDevicesUntilError(scanner, watcher, &lastKnownStates)
 
 		if finished {
-			scanner.Close()
+			if err := scanner.Close(); err != nil {
+				log.Printf("[DeviceWatcher] error closing scanner: %s", err)
+			}
 			return
 		}
 
@@ -167,12 +171,16 @@ func connectToTrackDevices(server server) (wire.Scanner, error) {
 	}
 
 	if err := wire.SendMessageString(conn, "host:track-devices"); err != nil {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			log.Printf("[DeviceWatcher] error closing connection: %s", err)
+		}
 		return nil, err
 	}
 
 	if _, err := conn.ReadStatus("host:track-devices"); err != nil {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			log.Printf("[DeviceWatcher] error closing connection: %s", err)
+		}
 		return nil, err
 	}
 

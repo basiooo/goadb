@@ -3,6 +3,7 @@ package adb
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -27,13 +28,6 @@ type Device struct {
 
 func (c *Device) String() string {
 	return c.descriptor.String()
-}
-
-// get-product is documented, but not implemented, in the server.
-// TODO(z): Make product exported if get-product is ever implemented in adb.
-func (c *Device) product() (string, error) {
-	attr, err := c.getAttribute("get-product")
-	return attr, wrapClientError(err, c, "Product")
 }
 
 func (c *Device) Serial() (string, error) {
@@ -110,7 +104,9 @@ func (c *Device) RunCommand(cmd string, args ...string) (string, error) {
 	if err != nil {
 		return "", wrapClientError(err, c, "RunCommand")
 	}
-	defer conn.Close()
+	if err := conn.Close(); err != nil {
+		return "", wrapClientError(err, c, "RunCommand")
+	}
 
 	req := fmt.Sprintf("shell:%s", cmd)
 
@@ -144,7 +140,9 @@ func (c *Device) Remount() (string, error) {
 	if err != nil {
 		return "", wrapClientError(err, c, "Remount")
 	}
-	defer conn.Close()
+	if err := conn.Close(); err != nil {
+		return "", wrapClientError(err, c, "Remount")
+	}
 
 	resp, err := conn.RoundTripSingleResponse([]byte("remount"))
 	return string(resp), wrapClientError(err, c, "Remount")
@@ -165,7 +163,11 @@ func (c *Device) Stat(path string) (*DirEntry, error) {
 	if err != nil {
 		return nil, wrapClientError(err, c, "Stat(%s)", path)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("[Device] error closing connection: %s", err)
+		}
+	}()
 
 	entry, err := stat(conn, path)
 	return entry, wrapClientError(err, c, "Stat(%s)", path)
@@ -233,12 +235,16 @@ func (c *Device) dialDevice() (*wire.Conn, error) {
 
 	req := fmt.Sprintf("host:%s", c.descriptor.getTransportDescriptor())
 	if err = wire.SendMessageString(conn, req); err != nil {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			log.Printf("[Device] error closing connection: %s", err)
+		}
 		return nil, errors.WrapErrf(err, "error connecting to device '%s'", c.descriptor)
 	}
 
 	if _, err = conn.ReadStatus(req); err != nil {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			log.Printf("[Device] error closing connection: %s", err)
+		}
 		return nil, err
 	}
 
