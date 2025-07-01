@@ -1,6 +1,7 @@
 package adb
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -124,6 +125,80 @@ func (c *Device) RunCommand(cmd string, args ...string) (string, error) {
 
 	resp, err := conn.ReadUntilEof()
 	return string(resp), wrapClientError(err, c, "RunCommand")
+}
+
+/*
+RunCommandWithTimeout runs the specified commands on a shell on the device with a timeout.
+
+This function is similar to RunCommand but adds timeout capability to prevent hanging
+when commands enter interactive mode or don't return within the specified time.
+
+Parameters:
+  - cmd: The command to run
+  - timeoutSeconds: Timeout in seconds before the command is canceled
+
+The function will return the command output if it completes successfully within the specified timeout.
+If the timeout is reached before the command completes, it returns a context.DeadlineExceeded error.
+
+This function is useful for commands that might enter interactive mode such as 'su', 'sh', or
+other commands that may require user input and could cause the program to hang.
+
+Example usage:
+
+	output, err := device.RunCommandWithTimeout("su", 5, "-c", "ls /data")
+*/
+func (c *Device) RunCommandWithTimeout(cmd string, timeoutSeconds int) (string, error) {
+	fullCmd, err := prepareCommandLine(cmd)
+	if err != nil {
+		return "", wrapClientError(err, c, "RunCommandWithTimeout")
+	}
+
+	conn, err := c.dialDevice()
+	if err != nil {
+		return "", wrapClientError(err, c, "RunCommandWithTimeout")
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("[Device] error closing connection: %s", err)
+		}
+	}()
+
+	req := fmt.Sprintf("shell:%s", fullCmd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSeconds)*time.Second)
+	defer cancel()
+
+	if err = conn.SendMessage([]byte(req)); err != nil {
+		return "", wrapClientError(err, c, "RunCommandWithTimeout")
+	}
+	if _, err = conn.ReadStatus(req); err != nil {
+		return "", wrapClientError(err, c, "RunCommandWithTimeout")
+	}
+
+	resultChan := make(chan struct {
+		data string
+		err  error
+	}, 1)
+
+	go func() {
+		resp, err := conn.ReadUntilEof()
+		resultChan <- struct {
+			data string
+			err  error
+		}{string(resp), err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return "", &errors.Err{
+			Code:    errors.CommandTimeout,
+			Message: fmt.Sprintf("command timed out after %d seconds", timeoutSeconds),
+			Cause:   ctx.Err(),
+			Details: c,
+		}
+	case res := <-resultChan:
+		return res.data, wrapClientError(res.err, c, "RunCommandWithTimeout")
+	}
 }
 
 /*

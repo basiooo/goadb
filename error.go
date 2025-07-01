@@ -19,6 +19,8 @@ const (
 	DeviceNotFound = ErrCode(errors.DeviceNotFound)
 	// Tried to perform an operation on a path that doesn't exist on the device.
 	FileNoExistError = ErrCode(errors.FileNoExistError)
+	// Command execution timed out.
+	CommandTimeout = ErrCode(errors.CommandTimeout)
 )
 
 // HasErrCode returns true if err is an *errors.Err and err.Code == code.

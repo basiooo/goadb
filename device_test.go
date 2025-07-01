@@ -1,12 +1,27 @@
 package adb
 
 import (
+	"context"
 	"testing"
 
 	"github.com/basiooo/goadb/internal/errors"
 	"github.com/basiooo/goadb/wire"
 	"github.com/stretchr/testify/assert"
 )
+
+func code(err error) errors.ErrCode {
+	if err, ok := err.(*errors.Err); ok {
+		return err.Code
+	}
+	return errors.ErrCode(255) // Invalid code
+}
+
+func message(err error) string {
+	if err, ok := err.(*errors.Err); ok {
+		return err.Message
+	}
+	return err.Error()
+}
 
 func TestGetAttribute(t *testing.T) {
 	s := &MockServer{
@@ -112,10 +127,97 @@ func TestPrepareCommandLineArgWithDoubleQuoteFails(t *testing.T) {
 	assert.Equal(t, "arg at index 0 contains an invalid double quote: quoted\"arg", message(err))
 }
 
-func code(err error) errors.ErrCode {
-	return err.(*errors.Err).Code
+func TestRunCommandWithTimeoutSuccess(t *testing.T) {
+	s := &MockServer{
+		Status:   wire.StatusSuccess,
+		Messages: []string{"output"},
+	}
+	client := (&Adb{s}).Device(AnyDevice())
+
+	v, err := client.RunCommandWithTimeout("cmd", 5)
+	assert.Equal(t, "host:transport-any", s.Requests[0])
+	assert.Equal(t, "shell:cmd", s.Requests[1])
+	assert.NoError(t, err)
+	assert.Equal(t, "output", v)
 }
 
-func message(err error) string {
-	return err.(*errors.Err).Message
+func TestRunCommandWithTimeoutTimesOut(t *testing.T) {
+	s := &MockServer{
+		Status: wire.StatusSuccess,
+		Errs:   []error{nil, nil, context.DeadlineExceeded},
+	}
+	client := (&Adb{s}).Device(AnyDevice())
+
+	timeoutErr := &errors.Err{
+		Code:    errors.CommandTimeout,
+		Message: "command timed out",
+		Cause:   context.DeadlineExceeded,
+	}
+
+	s.Errs = []error{nil, nil, timeoutErr}
+
+	_, err := client.RunCommandWithTimeout("cmd", 1)
+	assert.Error(t, err)
+	assert.True(t, errors.HasErrCode(err, errors.CommandTimeout))
+}
+
+func TestRunCommandWithTimeoutWithArgs(t *testing.T) {
+	s := &MockServer{
+		Status:   wire.StatusSuccess,
+		Messages: []string{"output with args"},
+	}
+	client := (&Adb{s}).Device(AnyDevice())
+
+	v, err := client.RunCommandWithTimeout("cmd arg1 arg2", 5)
+	assert.Equal(t, "host:transport-any", s.Requests[0])
+	assert.Equal(t, "shell:cmd arg1 arg2", s.Requests[1])
+	assert.NoError(t, err)
+	assert.Equal(t, "output with args", v)
+}
+
+func TestRunCommandWithTimeoutPreparationError(t *testing.T) {
+	s := &MockServer{
+		Status: wire.StatusSuccess,
+	}
+	client := (&Adb{s}).Device(AnyDevice())
+
+	_, err := client.RunCommandWithTimeout("", 5)
+	assert.Error(t, err)
+	assert.True(t, errors.HasErrCode(err, errors.AssertionError))
+}
+
+func TestRunCommandWithTimeoutDialError(t *testing.T) {
+	s := &MockServer{
+		Status: wire.StatusSuccess,
+		Errs:   []error{errors.Errorf(errors.NetworkError, "dial error")},
+	}
+	client := (&Adb{s}).Device(AnyDevice())
+
+	_, err := client.RunCommandWithTimeout("cmd", 5)
+	assert.Error(t, err)
+	assert.True(t, errors.HasErrCode(err, errors.NetworkError))
+}
+
+func TestRunCommandWithTimeoutSendError(t *testing.T) {
+	s := &MockServer{
+		Status: wire.StatusSuccess,
+		Errs:   []error{nil, errors.Errorf(errors.NetworkError, "send error")},
+	}
+	client := (&Adb{s}).Device(AnyDevice())
+
+	_, err := client.RunCommandWithTimeout("cmd", 5)
+	assert.Error(t, err)
+	assert.True(t, errors.HasErrCode(err, errors.NetworkError))
+}
+
+func TestRunCommandWithTimeoutStatusError(t *testing.T) {
+	s := &MockServer{
+		Status: wire.StatusFailure,
+		Errs:   []error{nil, nil, errors.Errorf(errors.AdbError, "status error")},
+	}
+	client := (&Adb{s}).Device(AnyDevice())
+
+	_, err := client.RunCommandWithTimeout("cmd", 5)
+	assert.Error(t, err)
+	assert.True(t, errors.HasErrCode(err, errors.AdbError))
 }
