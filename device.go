@@ -27,6 +27,12 @@ type Device struct {
 	deviceListFunc func() ([]*DeviceInfo, error)
 }
 
+type ForwardRule struct {
+	Serial string
+	Local  string
+	Remote string
+}
+
 func (c *Device) String() string {
 	return c.descriptor.String()
 }
@@ -352,4 +358,136 @@ func prepareCommandLine(cmd string, args ...string) (string, error) {
 	}
 
 	return cmd, nil
+}
+
+func (c *Device) ForwardPort(port uint16) error {
+	return c.Forward(fmt.Sprintf("tcp:%d", port))
+}
+
+func (c *Device) ForwardAbstract(port uint16, name string) error {
+	return c.Forward(fmt.Sprintf("tcp:%d;localabstract:%s", port, name))
+}
+
+func (c *Device) Forward(addr string) error {
+	addr = fmt.Sprintf("host-serial:%s:forward:%s", c.descriptor.serial, addr)
+	conn, err := c.dialDevice()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("[Device] error closing connection: %s", err)
+		}
+	}()
+	if err != nil {
+		return wrapClientError(err, c, "forward: dial device")
+	}
+	if err = conn.SendMessage([]byte(addr)); err != nil {
+		return wrapClientError(err, c, "forward: send message")
+	}
+	if _, err = conn.ReadStatus(addr); err != nil {
+		return wrapClientError(err, c, "forward: read status")
+	}
+	return nil
+}
+
+func (c *Device) ForwardRemoveAll() error {
+	conn, err := c.dialDevice()
+	if err != nil {
+		return wrapClientError(err, c, "forward remove all: dial device")
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("[Device] error closing connection: %s", err)
+		}
+	}()
+
+	req := fmt.Sprintf("host-serial:%s:killforward-all", c.descriptor.serial)
+	if err = conn.SendMessage([]byte(req)); err != nil {
+		return wrapClientError(err, c, "forward remove all: send message")
+	}
+
+	if _, err = conn.ReadStatus(req); err != nil {
+		return wrapClientError(err, c, "forward remove all: read status")
+	}
+
+	return nil
+}
+
+func (c *Device) ForwardRemovePort(port uint16) error {
+	return c.ForwardRemove(fmt.Sprintf("tcp:%d", port))
+}
+
+func (c *Device) ForwardRemove(addr string) error {
+	conn, err := c.dialDevice()
+	if err != nil {
+		return wrapClientError(err, c, "forward remove: dial device")
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("[Device] error closing connection: %s", err)
+		}
+	}()
+
+	req := fmt.Sprintf("host-serial:%s:killforward:%s", c.descriptor.serial, addr)
+
+	if err = conn.SendMessage([]byte(req)); err != nil {
+		return wrapClientError(err, c, "forward remove: send message")
+	}
+
+	if _, err = conn.ReadStatus(req); err != nil {
+		return wrapClientError(err, c, "forward remove: read status")
+	}
+
+	return nil
+}
+
+func (c *Device) parseForwardRules(data string) ([]ForwardRule, error) {
+	lines := strings.Split(strings.TrimSpace(data), "\n")
+	rules := make([]ForwardRule, 0, len(lines))
+	for _, line := range lines {
+		if len(line) == 0 {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 3 {
+			return nil, fmt.Errorf("invalid forward rule line (expected 3 fields): %q", line)
+		}
+		rule := ForwardRule{
+			Serial: fields[0],
+			Local:  fields[1],
+			Remote: fields[2],
+		}
+		rules = append(rules, rule)
+	}
+
+	return rules, nil
+}
+
+func (c *Device) ForwardList() ([]ForwardRule, error) {
+	conn, err := c.dialDevice()
+	if err != nil {
+		return nil, wrapClientError(err, c, "forward list: dial device")
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("[Device] error closing connection: %s", err)
+		}
+	}()
+
+	req := fmt.Sprintf("host-serial:%s:list-forward", c.descriptor.serial)
+
+	if err = conn.SendMessage([]byte(req)); err != nil {
+		return nil, wrapClientError(err, c, "forward list: send message")
+	}
+
+	if _, err = conn.ReadStatus(req); err != nil {
+		return nil, wrapClientError(err, c, "forward list: read status")
+	}
+
+	resp, err := conn.ReadUntilEof()
+	if err != nil {
+		return nil, wrapClientError(err, c, "forward list: Read Response")
+	}
+
+	resp = resp[4:]
+
+	return c.parseForwardRules(string(resp))
 }

@@ -221,3 +221,62 @@ func TestRunCommandWithTimeoutStatusError(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.HasErrCode(err, errors.AdbError))
 }
+
+func TestDevice_ForwardPort(t *testing.T) {
+	s := &MockServer{
+		Status:   wire.StatusSuccess,
+		Messages: []string{"OKAY"},
+	}
+	dev := (&Adb{s}).Device(DeviceWithSerial("serial"))
+	err := dev.ForwardPort(12345)
+	assert.NoError(t, err)
+	assert.Contains(t, s.Requests[1], "host-serial:serial:forward:tcp:12345")
+}
+
+func TestDevice_ForwardAbstract(t *testing.T) {
+	s := &MockServer{
+		Status:   wire.StatusSuccess,
+		Messages: []string{"OKAY"},
+	}
+	dev := (&Adb{s}).Device(DeviceWithSerial("serial"))
+	err := dev.ForwardAbstract(12345, "testname")
+	assert.NoError(t, err)
+	assert.Contains(t, s.Requests[1], "host-serial:serial:forward:tcp:12345;localabstract:testname")
+}
+
+func TestDevice_ForwardRemovePort(t *testing.T) {
+	s := &MockServer{
+		Status:   wire.StatusSuccess,
+		Messages: []string{"OKAY"},
+	}
+	dev := (&Adb{s}).Device(DeviceWithSerial("serial"))
+	err := dev.ForwardRemovePort(12345)
+	assert.NoError(t, err)
+	assert.Contains(t, s.Requests[1], "host-serial:serial:killforward:tcp:12345")
+}
+
+func TestDevice_ForwardRemoveAll(t *testing.T) {
+	s := &MockServer{
+		Status:   wire.StatusSuccess,
+		Messages: []string{"OKAY"},
+	}
+	dev := (&Adb{s}).Device(DeviceWithSerial("serial"))
+	err := dev.ForwardRemoveAll()
+	assert.NoError(t, err)
+	assert.Contains(t, s.Requests[1], "host-serial:serial:killforward-all")
+}
+
+func TestDevice_ForwardList(t *testing.T) {
+	s := &MockServer{
+		Status:   wire.StatusSuccess,
+		Messages: []string{"abcd\nserial1 tcp:12345 tcp:54321\nserial2 tcp:2222 tcp:3333\n"},
+	}
+	dev := (&Adb{s}).Device(DeviceWithSerial("serial"))
+	rules, err := dev.ForwardList()
+	assert.NoError(t, err)
+	assert.Len(t, rules, 2)
+	assert.Equal(t, "serial1", rules[0].Serial)
+	assert.Equal(t, "tcp:12345", rules[0].Local)
+	assert.Equal(t, "tcp:54321", rules[0].Remote)
+	assert.Equal(t, "serial2", rules[1].Serial)
+}
