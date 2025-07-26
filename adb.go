@@ -83,7 +83,12 @@ func (c *Adb) KillServer() error {
 	if err != nil {
 		return wrapClientError(err, c, "KillServer")
 	}
-	defer conn.Close()
+
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("KillServer: conn.Close() failed: %v", wrapClientError(err, c, "KillServer"))
+		}
+	}()
 
 	if err = wire.SendMessageString(conn, "host:kill"); err != nil {
 		return wrapClientError(err, c, "KillServer")
