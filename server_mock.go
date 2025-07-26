@@ -3,6 +3,7 @@ package adb
 import (
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/basiooo/goadb/internal/errors"
 	"github.com/basiooo/goadb/wire"
@@ -26,6 +27,7 @@ type MockServer struct {
 
 	// Each time an operation is performed, its name is appended to this slice.
 	Trace []string
+	mu    sync.Mutex
 }
 
 var _ server = &MockServer{}
@@ -65,6 +67,8 @@ func (s *MockServer) ReadMessage() ([]byte, error) {
 }
 
 func (s *MockServer) ReadUntilEof() ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.logMethod("ReadUntilEof")
 	if err := s.getNextErrToReturn(); err != nil {
 		return nil, err
@@ -97,6 +101,8 @@ func (s *MockServer) NewSyncSender() wire.SyncSender {
 }
 
 func (s *MockServer) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.logMethod("Close")
 	if err := s.getNextErrToReturn(); err != nil {
 		return err

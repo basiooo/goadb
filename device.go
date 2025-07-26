@@ -207,6 +207,59 @@ func (c *Device) RunCommandWithTimeout(cmd string, timeoutSeconds int) (string, 
 	}
 }
 
+// RunShellLoop runs a long-running shell command on the device and blocks until it finishes or is cancelled.
+//
+// It is intended for commands like background services or servers that may run indefinitely.
+// The operation is cancellable via the provided context. Output is discarded.
+func (c *Device) RunShellLoop(ctx context.Context, baseCmd string, args ...string) error {
+	fullCmd, err := prepareCommandLine(baseCmd, args...)
+	if err != nil {
+		return wrapClientError(err, c, "RunShellLoop: prepare command")
+	}
+
+	conn, err := c.dialDevice()
+	if err != nil {
+		return wrapClientError(err, c, "RunShellLoop: dial device")
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("[Device] error closing connection: %s", err)
+		}
+	}()
+
+	req := fmt.Sprintf("shell:%s", fullCmd)
+
+	if err = conn.SendMessage([]byte(req)); err != nil {
+		return wrapClientError(err, c, "RunShellLoop: send message")
+	}
+
+	if _, err = conn.ReadStatus(req); err != nil {
+		return wrapClientError(err, c, "RunShellLoop: read status")
+	}
+
+	errChan := make(chan error, 1)
+
+	go func() {
+		_, err := conn.ReadUntilEof()
+		select {
+		case errChan <- wrapClientError(err, c, "RunLongCommand"):
+		case <-ctx.Done():
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return &errors.Err{
+			Code:    errors.CommandCanceled,
+			Message: "command cancelled by context",
+			Cause:   ctx.Err(),
+			Details: c,
+		}
+	case err := <-errChan:
+		return err
+	}
+}
+
 /*
 Remount, from the official adb command’s docs:
 

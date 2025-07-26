@@ -280,3 +280,27 @@ func TestDevice_ForwardList(t *testing.T) {
 	assert.Equal(t, "tcp:54321", rules[0].Remote)
 	assert.Equal(t, "serial2", rules[1].Serial)
 }
+
+func TestDevice_RunShellLoop_Cancel(t *testing.T) {
+	s := &MockServer{
+		Status:   wire.StatusSuccess,
+		Messages: []string{"OKAY", "output"},
+	}
+	dev := (&Adb{s}).Device(DeviceWithSerial("serial"))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := dev.RunShellLoop(ctx, "echo", "hello")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "command cancelled by context")
+}
+
+func TestDevice_RunShellLoop_Success(t *testing.T) {
+	s := &MockServer{
+		Status:   wire.StatusSuccess,
+		Messages: []string{"OKAY", "output"},
+	}
+	dev := (&Adb{s}).Device(DeviceWithSerial("serial"))
+	ctx := context.Background()
+	err := dev.RunShellLoop(ctx, "echo", "hello")
+	assert.NoError(t, err)
+}

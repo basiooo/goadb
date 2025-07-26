@@ -8,7 +8,7 @@ import (
 /*
 Err is the implementation of error that all goadb functions return.
 
-Best Practice
+# Best Practice
 
 External errors should be wrapped using WrapErrorf, as soon as they are known about.
 
@@ -32,6 +32,7 @@ type Err struct {
 var _ error = &Err{}
 
 // Keep this in sync with ../error.go.
+//
 //go:generate stringer -type=ErrCode
 type ErrCode byte
 
@@ -52,6 +53,8 @@ const (
 	FileNoExistError
 	// Command execution timed out.
 	CommandTimeout
+	// Command execution was canceled.
+	CommandCanceled
 )
 
 func Errorf(code ErrCode, format string, args ...interface{}) error {
@@ -122,6 +125,7 @@ func (errs multiError) Error() string {
 WrapErrorf returns an *Err that wraps another arbitrary error with an ErrCode and a message.
 
 If cause is nil, returns nil, so you can use it like
+
 	return util.WrapErrorf(DoSomethingDangerous(), util.NetworkError, "well that didn't work")
 
 If cause is known to be of type *Err, use WrapErrf.
